@@ -626,7 +626,8 @@ def merge_and_add_synapses(num_of_subtrees,
                            original_cell,
                            basals,
                            cell,
-                           reduction_frequency):
+                           reduction_frequency,
+                           merge_syns):
     # dividing the original synapses into baskets, so that all synapses that are
     # on the same subtree will be together in the same basket
 
@@ -682,17 +683,21 @@ def merge_and_add_synapses(num_of_subtrees,
             # of them has the same proporties of this synapse
             # If there's such a synapse link the original NetCon with this point processes
             # If not, move the synapse to this segment.
-            for PP in section_for_synapse(x).point_processes():
-                if type_of_point_process(PP) not in PP_params_dict:
-                    add_PP_properties_to_dict(PP, PP_params_dict)
-
-                if synapse_properties_match(synapse, PP, PP_params_dict):
-                    netcons_list[syn_index].setpost(PP)
-                    break
-            else:  # If for finish the loop -> first appearance of this synapse
+            if merge_syns:
+               for PP in section_for_synapse(x).point_processes():
+                   if type_of_point_process(PP) not in PP_params_dict:
+                       add_PP_properties_to_dict(PP, PP_params_dict)
+   
+                   if synapse_properties_match(synapse, PP, PP_params_dict):
+                       netcons_list[syn_index].setpost(PP)
+                       break
+               else:  # If for finish the loop -> first appearance of this synapse
+                   synapse.loc(x, sec=section_for_synapse)
+                   new_synapses_list.append(synapse)
+            else:
                 synapse.loc(x, sec=section_for_synapse)
                 new_synapses_list.append(synapse)
-
+             
     # merging somatic and axonal synapses
     synapses_per_seg = collections.defaultdict(list)
     for synapse in soma_synapses_syn_to_netcon:
@@ -725,7 +730,8 @@ def subtree_reductor(original_cell,
                      total_segments_manual=-1,
                      PP_params_dict=None,
                      mapping_type='impedance',
-                     return_seg_to_seg=False
+                     return_seg_to_seg=False,
+                     merge_syns=True
                      ):
 
     '''
@@ -758,6 +764,8 @@ def subtree_reductor(original_cell,
                            original_number_of_segments*total_segments_manual
     return_seg_to_seg: if True the function will also return a textify version of the mapping
                        between the original segments to the reduced segments 
+
+    merge_syns: if True the function will converge netcons onto one of many similar synapses.
 
 
     Returns the new reduced cell, a list of the new synapses, and the list of
@@ -852,7 +860,8 @@ def subtree_reductor(original_cell,
         original_cell,
         basals,
         cell,
-        reduction_frequency)
+        reduction_frequency,
+        merge_syns)
 
     # create segment to segment mapping
     original_seg_to_reduced_seg, reduced_seg_to_original_seg = create_seg_to_seg(
